@@ -8,13 +8,17 @@ import { useAuth } from '@/context/AuthContext';
 import { AlertCircle, CheckCircle, Unlink } from 'lucide-react';
 
 export default function Settings() {
-  const { user, setTelnyxApiKey, isTelnyxConnected } = useAuth();
+  const { user, setTelnyxApiKey, setSipCredentials, persistCredentials, isTelnyxConnected } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [apiKey, setApiKey] = useState('');
+  const [sipUsername, setSipUsername] = useState('');
+  const [sipPassword, setSipPassword] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showSipPassword, setShowSipPassword] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [apiSuccess, setApiSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,30 +32,39 @@ export default function Settings() {
     if (!apiKey.trim()) return;
 
     try {
-      const response = await fetch('/api/telnyx/set-api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
-      });
-
-      if (response.ok) {
-        setTelnyxApiKey(apiKey);
-        setApiKey('');
-        setApiSuccess(true);
-        setTimeout(() => setApiSuccess(false), 3000);
-      } else {
-        alert('Failed to validate API key. Please check and try again.');
-      }
+      setError(null);
+      await persistCredentials(apiKey, sipUsername || undefined, sipPassword || undefined);
+      setTelnyxApiKey(apiKey);
+      setApiKey('');
+      setSipUsername('');
+      setSipPassword('');
+      setApiSuccess(true);
+      setTimeout(() => setApiSuccess(false), 3000);
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      setError(err.message || 'Failed to save credentials');
+    }
+  };
+
+  const handleUpdateSipCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sipUsername.trim() || !sipPassword.trim()) return;
+
+    try {
+      setError(null);
+      await persistCredentials(user?.telnyxApiKey, sipUsername, sipPassword);
+      setSipCredentials(sipUsername, sipPassword);
+      setSipPassword('');
+      setApiSuccess(true);
+      setTimeout(() => setApiSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save SIP credentials');
     }
   };
 
   const handleDisconnectApi = () => {
-    if (confirm('Are you sure you want to disconnect your Telnyx API? This cannot be undone.')) {
+    if (confirm('Are you sure you want to disconnect your Telnyx API and SIP credentials? This cannot be undone.')) {
       setTelnyxApiKey('');
+      setSipCredentials('', '');
     }
   };
 
@@ -138,8 +151,18 @@ export default function Settings() {
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-green-900">API Connected</p>
-                      <p className="text-sm text-green-700">Your Telnyx API has been updated successfully.</p>
+                      <p className="font-semibold text-green-900">Credentials Saved</p>
+                      <p className="text-sm text-green-700">Your Telnyx API and SIP credentials have been saved successfully.</p>
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-red-900">Error</p>
+                      <p className="text-sm text-red-700">{error}</p>
                     </div>
                   </div>
                 )}
@@ -150,7 +173,7 @@ export default function Settings() {
                       <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-semibold text-green-900">Connected</p>
-                        <p className="text-sm text-green-700">Your Telnyx API is connected and active.</p>
+                        <p className="text-sm text-green-700">Your Telnyx API and SIP connection are active.</p>
                       </div>
                     </div>
 
@@ -161,6 +184,56 @@ export default function Settings() {
                       </p>
                     </div>
 
+                    {user?.sipUsername && (
+                      <div className="bg-background border border-border rounded-lg p-4">
+                        <p className="text-sm text-muted-foreground mb-2">SIP Username</p>
+                        <p className="text-sm text-foreground mb-4">{user.sipUsername}</p>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleUpdateSipCredentials} className="space-y-4 bg-background border border-border rounded-lg p-4">
+                      <h3 className="font-semibold text-foreground">Update SIP Credentials</h3>
+
+                      <div>
+                        <Label htmlFor="editSipUsername" className="text-foreground">SIP Username</Label>
+                        <Input
+                          id="editSipUsername"
+                          type="text"
+                          placeholder="Enter SIP username"
+                          value={sipUsername || user?.sipUsername || ''}
+                          onChange={(e) => setSipUsername(e.target.value)}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="editSipPassword" className="text-foreground">SIP Password</Label>
+                        <Input
+                          id="editSipPassword"
+                          type={showSipPassword ? 'text' : 'password'}
+                          placeholder="Enter SIP password"
+                          value={sipPassword}
+                          onChange={(e) => setSipPassword(e.target.value)}
+                          className="mt-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSipPassword(!showSipPassword)}
+                          className="text-xs text-primary hover:underline mt-2"
+                        >
+                          {showSipPassword ? 'Hide' : 'Show'} Password
+                        </button>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={!sipUsername.trim() || !sipPassword.trim()}
+                        className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2 rounded-lg transition-all"
+                      >
+                        Update SIP Credentials
+                      </Button>
+                    </form>
+
                     <div className="space-y-3">
                       <Button
                         onClick={handleDisconnectApi}
@@ -168,7 +241,7 @@ export default function Settings() {
                         className="w-full py-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
                       >
                         <Unlink className="w-4 h-4 mr-2" />
-                        Disconnect API
+                        Disconnect All
                       </Button>
                     </div>
                   </div>
@@ -178,7 +251,7 @@ export default function Settings() {
                       <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-semibold text-blue-900">Not Connected</p>
-                        <p className="text-sm text-blue-700">Connect your Telnyx API to enable calling features.</p>
+                        <p className="text-sm text-blue-700">Connect your Telnyx API and SIP credentials to enable calling features.</p>
                       </div>
                     </div>
 
@@ -201,12 +274,43 @@ export default function Settings() {
                       </button>
                     </div>
 
+                    <div>
+                      <Label htmlFor="sipUsername" className="text-foreground">SIP Username</Label>
+                      <Input
+                        id="sipUsername"
+                        type="text"
+                        placeholder="Enter your SIP username"
+                        value={sipUsername}
+                        onChange={(e) => setSipUsername(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="sipPassword" className="text-foreground">SIP Password</Label>
+                      <Input
+                        id="sipPassword"
+                        type={showSipPassword ? 'text' : 'password'}
+                        placeholder="Enter your SIP password"
+                        value={sipPassword}
+                        onChange={(e) => setSipPassword(e.target.value)}
+                        className="mt-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSipPassword(!showSipPassword)}
+                        className="text-xs text-primary hover:underline mt-2"
+                      >
+                        {showSipPassword ? 'Hide' : 'Show'} Password
+                      </button>
+                    </div>
+
                     <Button
                       type="submit"
-                      disabled={!apiKey.trim()}
+                      disabled={!apiKey.trim() || !sipUsername.trim() || !sipPassword.trim()}
                       className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2 rounded-lg transition-all"
                     >
-                      Connect API
+                      Connect API & SIP
                     </Button>
                   </form>
                 )}

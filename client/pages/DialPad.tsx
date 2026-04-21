@@ -17,6 +17,7 @@ export default function DialPad() {
   const [purchasedNumbers, setPurchasedNumbers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [zeroTimeout, setZeroTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Fetch call history and bought numbers
   useEffect(() => {
@@ -82,7 +83,25 @@ export default function DialPad() {
   ];
 
   const handleDialPadClick = (digit: string) => {
-    setDialValue((prev) => prev + digit);
+    if (digit === '0') {
+      // Long press logic for 0 button
+      if (zeroTimeout) clearTimeout(zeroTimeout);
+      const timeout = setTimeout(() => {
+        setDialValue((prev) => prev + '+');
+        setZeroTimeout(null);
+      }, 500); // 500ms long press
+      setZeroTimeout(timeout);
+    } else {
+      setDialValue((prev) => prev + digit);
+    }
+  };
+
+  const handleZeroMouseUp = () => {
+    if (zeroTimeout) {
+      clearTimeout(zeroTimeout);
+      setDialValue((prev) => prev + '0');
+      setZeroTimeout(null);
+    }
   };
 
   const handleBackspace = () => {
@@ -285,7 +304,11 @@ export default function DialPad() {
                       {row.map((digit) => (
                         <Button
                           key={digit}
-                          onClick={() => handleDialPadClick(digit)}
+                          onClick={() => digit !== '0' && handleDialPadClick(digit)}
+                          onMouseDown={() => digit === '0' && handleDialPadClick(digit)}
+                          onMouseUp={() => digit === '0' && handleZeroMouseUp()}
+                          onTouchStart={() => digit === '0' && handleDialPadClick(digit)}
+                          onTouchEnd={() => digit === '0' && handleZeroMouseUp()}
                           className="h-16 text-xl font-semibold bg-white hover:bg-muted text-foreground border border-border rounded-lg transition-all"
                         >
                           {digit}

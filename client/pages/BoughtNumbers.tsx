@@ -90,38 +90,41 @@ export default function BoughtNumbers() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {numbers.map((num) => (
-              <div key={num.id} className="bg-card rounded-lg border border-border p-6 hover:border-primary/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="bg-primary/10 rounded-lg p-2">
-                        <Phone className="w-5 h-5 text-primary" />
+              <div key={num.id} className="bg-card rounded-xl border border-border p-6 hover:border-primary/50 hover:shadow-lg transition-all duration-300">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 rounded-lg p-3">
+                        <Phone className="w-6 h-6 text-primary" />
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-foreground">{num.number}</h3>
-                        <p className="text-sm text-muted-foreground">{num.country}</p>
+                        <p className="text-sm text-muted-foreground">{num.country} • {num.areaCode}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                    <button className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 mt-auto pt-4 border-t border-border">
+                    <div className="flex justify-between">
                       <div>
-                        <p className="text-muted-foreground text-xs">Purchased</p>
-                        <p className="font-semibold text-foreground">
+                        <p className="text-muted-foreground text-xs font-medium">Purchased</p>
+                        <p className="font-semibold text-foreground text-sm">
                           {new Date(num.purchasedDate).toLocaleDateString()}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">Renewal Date</p>
-                        <p className="font-semibold text-foreground">
+                      <div className="text-right">
+                        <p className="text-muted-foreground text-xs font-medium">Renews</p>
+                        <p className="font-semibold text-foreground text-sm">
                           {new Date(num.renewalDate).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <button className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
             ))}
