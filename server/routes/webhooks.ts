@@ -1,7 +1,80 @@
 import { RequestHandler } from 'express';
 import { connectDB, createCall, updateUser, getUserById } from '../db';
 
-// Handle Telnyx webhook events for call-related events
+// Handle Telnyx webhook events for call-related events (incoming calls)
+export const handleIncomingCall: RequestHandler = async (req, res) => {
+  try {
+    const event = req.body;
+
+    // Log the event for debugging
+    console.log('Telnyx Incoming Call Event:', event.data?.event_type);
+
+    if (!event.data?.event_type) {
+      return res.status(400).json({ error: 'Invalid webhook event' });
+    }
+
+    await connectDB();
+
+    // Handle incoming call related events
+    switch (event.data.event_type) {
+      case 'call.initiated':
+        await handleCallInitiated(event.data);
+        break;
+      case 'call.answered':
+        await handleCallAnswered(event.data);
+        break;
+      case 'call.hangup':
+        await handleCallHangup(event.data);
+        break;
+      default:
+        console.log('Unhandled event type:', event.data.event_type);
+    }
+
+    // Always return 200 to acknowledge receipt
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Webhook error:', error);
+    // Still return 200 to prevent Telnyx from retrying
+    res.json({ success: true, error: error.message });
+  }
+};
+
+// Handle Telnyx webhook events - failover endpoint
+export const handleIncomingCallFailover: RequestHandler = async (req, res) => {
+  try {
+    const event = req.body;
+
+    console.log('Telnyx Failover Webhook Event:', event.data?.event_type);
+
+    if (!event.data?.event_type) {
+      return res.status(400).json({ error: 'Invalid webhook event' });
+    }
+
+    await connectDB();
+
+    // Handle the same events as primary endpoint
+    switch (event.data.event_type) {
+      case 'call.initiated':
+        await handleCallInitiated(event.data);
+        break;
+      case 'call.answered':
+        await handleCallAnswered(event.data);
+        break;
+      case 'call.hangup':
+        await handleCallHangup(event.data);
+        break;
+      default:
+        console.log('Unhandled failover event type:', event.data.event_type);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failover webhook error:', error);
+    res.json({ success: true, error: error.message });
+  }
+};
+
+// Legacy - handle all Telnyx webhook events
 export const handleTelnyxWebhook: RequestHandler = async (req, res) => {
   try {
     const event = req.body;

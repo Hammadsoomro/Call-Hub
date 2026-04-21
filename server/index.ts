@@ -13,6 +13,8 @@ import {
 } from "./routes/telnyx";
 import {
   handleTelnyxWebhook,
+  handleIncomingCall,
+  handleIncomingCallFailover,
   saveCallRecord,
   getUserCallHistory,
 } from "./routes/webhooks";
@@ -43,7 +45,13 @@ export function createServer() {
   app.post("/api/settings/webhooks", saveWebhookSettings);
 
   // Webhook routes
-  // Telnyx webhook endpoint - use this URL in your Telnyx dashboard
+  // Primary incoming call webhook endpoint
+  app.post("/api/webhooks/incoming-call", handleIncomingCall);
+
+  // Failover incoming call webhook endpoint
+  app.post("/api/webhooks/incoming-call-failover", handleIncomingCallFailover);
+
+  // Legacy endpoint - for all Telnyx events
   app.post("/api/webhooks/telnyx", handleTelnyxWebhook);
 
   // Save call records from client
