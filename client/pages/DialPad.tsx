@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +21,8 @@ export default function DialPad() {
   const [zeroTimeout, setZeroTimeout] = useState<NodeJS.Timeout | null>(null);
   const [ringtonePlayback, setRingtonePlayback] = useState(false);
   const selectedRingtone = user?.selectedRingtone || 'default';
+  const [incomingCallNotification, setIncomingCallNotification] = useState(false);
+  const previousIncomingCountRef = useRef(0);
 
   // Fetch call history and bought numbers
   useEffect(() => {
@@ -65,6 +67,11 @@ export default function DialPad() {
     };
 
     fetchData();
+
+    // Auto-refresh incoming calls every 3 seconds to detect new calls
+    const refreshInterval = setInterval(fetchData, 3000);
+
+    return () => clearInterval(refreshInterval);
   }, [isTelnyxConnected(), user?.telnyxApiKey]);
 
   // Simulate call timer
@@ -77,6 +84,22 @@ export default function DialPad() {
     }
     return () => clearInterval(interval);
   }, [activeCall]);
+
+  // Handle incoming call detection and notification
+  useEffect(() => {
+    const incomingCalls = calls.filter((c) => c.type === 'incoming');
+    const currentIncomingCount = incomingCalls.length;
+
+    // Detect new incoming call
+    if (currentIncomingCount > previousIncomingCountRef.current) {
+      setIncomingCallNotification(true);
+      // Auto-hide notification after 5 seconds
+      const timer = setTimeout(() => setIncomingCallNotification(false), 5000);
+      return () => clearTimeout(timer);
+    }
+
+    previousIncomingCountRef.current = currentIncomingCount;
+  }, [calls.filter((c) => c.type === 'incoming').length]);
 
   // Handle ringtone playback for incoming calls - play when new incoming call detected
   useEffect(() => {
@@ -171,6 +194,16 @@ export default function DialPad() {
 
   return (
     <DashboardLayout>
+      {/* Incoming Call Notification */}
+      {incomingCallNotification && (
+        <div className="fixed top-0 left-0 right-0 bg-green-50 border-b border-green-300 p-4 z-50 shadow-md">
+          <div className="flex items-center justify-center gap-2 text-green-800">
+            <Phone className="w-5 h-5 animate-pulse" />
+            <span className="font-semibold">Incoming call received!</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex h-screen">
         {/* Left Side - Contact List */}
         <div className="w-80 border-r border-border bg-card flex flex-col">
