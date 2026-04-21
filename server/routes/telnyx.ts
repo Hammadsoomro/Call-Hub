@@ -231,3 +231,55 @@ export const setTelnyxApi: RequestHandler = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Get Telnyx account balance
+export const getTelnyxBalance: RequestHandler = async (req, res) => {
+  try {
+    const apiKey = getTelnyxApiKey(req);
+    if (!apiKey) {
+      return res.status(401).json({ error: 'Missing Telnyx API key' });
+    }
+
+    const data = await telnyxFetch('/balance', apiKey, {
+      method: 'GET',
+    });
+
+    const balance = data.data?.balance || 0;
+
+    res.json({
+      success: true,
+      balance,
+    });
+  } catch (error: any) {
+    console.error('Error fetching Telnyx balance:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Save webhook and ringtone settings
+export const saveWebhookSettings: RequestHandler = async (req, res) => {
+  try {
+    const { userId, webhookUrl, webhookFailoverUrl, selectedRingtone } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    await connectDB();
+    const updates: any = {};
+
+    if (webhookUrl !== undefined) updates.webhookUrl = webhookUrl || undefined;
+    if (webhookFailoverUrl !== undefined) updates.webhookFailoverUrl = webhookFailoverUrl || undefined;
+    if (selectedRingtone !== undefined) updates.selectedRingtone = selectedRingtone || 'default';
+
+    await updateUser(userId, updates);
+
+    res.json({
+      success: true,
+      message: 'Webhook and ringtone settings saved successfully',
+    });
+  } catch (error: any) {
+    console.error('Error saving webhook settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

@@ -7,6 +7,9 @@ export interface AuthUser {
   telnyxApiKey?: string;
   sipUsername?: string;
   sipPassword?: string;
+  webhookUrl?: string;
+  webhookFailoverUrl?: string;
+  selectedRingtone?: string;
   createdAt: Date;
 }
 
