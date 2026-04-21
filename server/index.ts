@@ -11,6 +11,11 @@ import {
   getTelnyxBalance,
   saveWebhookSettings,
 } from "./routes/telnyx";
+import {
+  handleTelnyxWebhook,
+  saveCallRecord,
+  getUserCallHistory,
+} from "./routes/webhooks";
 
 export function createServer() {
   const app = express();
@@ -36,6 +41,16 @@ export function createServer() {
   app.post("/api/telnyx/set-api", setTelnyxApi);
   app.get("/api/telnyx/balance", getTelnyxBalance);
   app.post("/api/settings/webhooks", saveWebhookSettings);
+
+  // Webhook routes
+  // Telnyx webhook endpoint - use this URL in your Telnyx dashboard
+  app.post("/api/webhooks/telnyx", handleTelnyxWebhook);
+
+  // Save call records from client
+  app.post("/api/calls/save", saveCallRecord);
+
+  // Get call history for a user
+  app.get("/api/calls/history", getUserCallHistory);
 
   return app;
 }

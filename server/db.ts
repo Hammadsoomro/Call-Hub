@@ -68,10 +68,14 @@ export interface Call {
   userId: string;
   contactName: string;
   phoneNumber: string;
+  from: string;
+  to: string;
   duration: number;
   timestamp: Date;
   type: 'incoming' | 'outgoing';
   selectedNumber?: string;
+  callSessionId?: string;
+  status?: 'completed' | 'missed' | 'declined' | 'failed';
 }
 
 // Phone Number model
