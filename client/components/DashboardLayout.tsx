@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Phone, PhoneOff, ShoppingCart, Settings, LogOut } from 'lucide-react';
+import { Phone, PhoneOff, ShoppingCart, Settings, LogOut, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -11,6 +11,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const mainNavItems = [
     { path: '/dialpad', label: 'DialPad', icon: Phone },
@@ -23,17 +24,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+      <aside className={cn(
+        'bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 ease-in-out',
+        isSidebarOpen ? 'w-64' : 'w-0 -ml-64'
+      )}>
         {/* Logo */}
         <div className="p-6 border-b border-sidebar-border">
           <Link to="/dialpad" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="bg-sidebar-primary rounded-lg p-2">
+            <div className="bg-sidebar-primary rounded-lg p-2 flex-shrink-0">
               <Phone className="w-5 h-5 text-sidebar-primary-foreground" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-sidebar-primary-foreground">CallHub</h1>
-              <p className="text-xs text-sidebar-accent-foreground">VoIP Platform</p>
-            </div>
+            {isSidebarOpen && (
+              <div>
+                <h1 className="text-lg font-bold text-sidebar-primary-foreground">CallHub</h1>
+                <p className="text-xs text-sidebar-accent-foreground">VoIP Platform</p>
+              </div>
+            )}
           </Link>
         </div>
 
@@ -43,15 +49,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Link
               key={path}
               to={path}
+              title={label}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg transition-all',
+                'flex items-center gap-3 px-4 py-3 rounded-lg transition-all justify-center',
+                isSidebarOpen ? 'justify-start' : '',
                 isActive(path)
                   ? 'bg-sidebar-primary text-sidebar-primary-foreground font-semibold'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span>{label}</span>
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              {isSidebarOpen && <span>{label}</span>}
             </Link>
           ))}
         </nav>
@@ -60,36 +68,58 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="border-t border-sidebar-border p-3 space-y-2">
           <Link
             to="/settings"
+            title="Settings"
             className={cn(
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-all',
+              'flex items-center gap-3 px-4 py-3 rounded-lg transition-all justify-center',
+              isSidebarOpen ? 'justify-start' : '',
               isActive('/settings')
                 ? 'bg-sidebar-primary text-sidebar-primary-foreground font-semibold'
                 : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
             )}
           >
-            <Settings className="w-5 h-5" />
-            <span>Settings</span>
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            {isSidebarOpen && <span>Settings</span>}
           </Link>
 
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-red-500/20 hover:text-red-500 transition-all"
+            title="Sign Out"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-red-500/20 hover:text-red-500 transition-all justify-center"
           >
-            <LogOut className="w-5 h-5" />
-            <span>Sign Out</span>
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            {isSidebarOpen && <span>Sign Out</span>}
           </button>
         </div>
 
         {/* User Info */}
-        <div className="border-t border-sidebar-border p-3">
-          <p className="text-xs text-sidebar-accent-foreground">Signed in as</p>
-          <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.email}</p>
-        </div>
+        {isSidebarOpen && (
+          <div className="border-t border-sidebar-border p-3">
+            <p className="text-xs text-sidebar-accent-foreground">Signed in as</p>
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.email}</p>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-background">
-        {children}
+      <main className="flex-1 overflow-auto bg-background flex flex-col">
+        {/* Header with Toggle */}
+        <div className="border-b border-border p-4">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            title={isSidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
+          >
+            {isSidebarOpen ? (
+              <Menu className="w-5 h-5 text-foreground" />
+            ) : (
+              <Menu className="w-5 h-5 text-foreground" />
+            )}
+          </button>
+        </div>
+        {/* Page Content */}
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
       </main>
     </div>
   );
