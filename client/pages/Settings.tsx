@@ -151,10 +151,9 @@ export default function Settings() {
 
         <div className="max-w-2xl">
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-muted">
+            <TabsList className="grid w-full grid-cols-2 bg-muted">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="integration">Integration</TabsTrigger>
-              <TabsTrigger value="webhooks">Webhooks & Ringtones</TabsTrigger>
             </TabsList>
 
             {/* Profile Tab */}
@@ -390,7 +389,72 @@ export default function Settings() {
                 )}
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              {isTelnyxConnected() && (
+                <>
+                  {/* Telnyx Balance Display */}
+                  <div className="bg-card rounded-lg border border-border p-6 mt-6">
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-300 rounded-lg">
+                      <div className="flex items-start gap-4">
+                        <div>
+                          <p className="text-sm text-blue-700 font-semibold">Telnyx Account Balance</p>
+                          {loadingBalance ? (
+                            <p className="text-2xl font-bold text-blue-900 mt-2">Loading...</p>
+                          ) : telnyxBalance !== null ? (
+                            <p className="text-2xl font-bold text-blue-900 mt-2">${telnyxBalance.toFixed(2)}</p>
+                          ) : (
+                            <p className="text-lg text-blue-700 mt-2">Unable to fetch balance</p>
+                          )}
+                        </div>
+                        <Button
+                          onClick={fetchTelnyxBalance}
+                          variant="outline"
+                          disabled={loadingBalance}
+                          className="ml-auto"
+                        >
+                          Refresh
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ringtone Selection */}
+                  <div className="bg-card rounded-lg border border-border p-6 mt-6">
+                    <h2 className="text-xl font-bold text-foreground mb-6">Incoming Call Ringtone</h2>
+
+                    <div className="space-y-4">
+                      <p className="text-sm text-muted-foreground">Select your preferred ringtone for incoming calls</p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {RINGTONES.map((ringtone) => (
+                          <label
+                            key={ringtone.id}
+                            className="flex items-center p-3 border border-border rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                          >
+                            <input
+                              type="radio"
+                              name="ringtone"
+                              value={ringtone.id}
+                              checked={selectedRingtone === ringtone.id}
+                              onChange={(e) => setSelectedRingtone(e.target.value)}
+                              className="mr-3"
+                            />
+                            <span className="text-foreground">{ringtone.name}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <Button
+                        onClick={handleSaveWebhookSettings}
+                        className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2 rounded-lg transition-all mt-6"
+                      >
+                        Save Ringtone Settings
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
                 <h3 className="font-semibold text-blue-900 mb-2">How to get your API Key:</h3>
                 <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                   <li>Go to <a href="https://telnyx.com/dashboard" target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">Telnyx Dashboard</a></li>
@@ -398,129 +462,6 @@ export default function Settings() {
                   <li>Find and copy your API Key</li>
                   <li>Paste it in the field above</li>
                 </ol>
-              </div>
-            </TabsContent>
-
-            {/* Webhooks & Ringtones Tab */}
-            <TabsContent value="webhooks" className="space-y-6 mt-6">
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h2 className="text-xl font-bold text-foreground mb-6">Webhook Configuration</h2>
-
-                {webhookSuccess && (
-                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-green-900">Settings Saved</p>
-                      <p className="text-sm text-green-700">Your webhook and ringtone settings have been saved successfully.</p>
-                    </div>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-red-900">Error</p>
-                      <p className="text-sm text-red-700">{error}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Telnyx Balance Display */}
-                {isTelnyxConnected() && (
-                  <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-300 rounded-lg">
-                    <div className="flex items-start gap-4">
-                      <div>
-                        <p className="text-sm text-blue-700 font-semibold">Telnyx Account Balance</p>
-                        {loadingBalance ? (
-                          <p className="text-2xl font-bold text-blue-900 mt-2">Loading...</p>
-                        ) : telnyxBalance !== null ? (
-                          <p className="text-2xl font-bold text-blue-900 mt-2">${telnyxBalance.toFixed(2)}</p>
-                        ) : (
-                          <p className="text-lg text-blue-700 mt-2">Unable to fetch balance</p>
-                        )}
-                      </div>
-                      <Button
-                        onClick={fetchTelnyxBalance}
-                        variant="outline"
-                        disabled={loadingBalance}
-                        className="ml-auto"
-                      >
-                        Refresh
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={handleSaveWebhookSettings} className="space-y-4">
-                  <div>
-                    <Label htmlFor="webhookUrl" className="text-foreground">Webhook URL</Label>
-                    <Input
-                      id="webhookUrl"
-                      type="url"
-                      placeholder="https://example.com/webhook"
-                      value={webhookUrl}
-                      onChange={(e) => setWebhookUrl(e.target.value)}
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Primary webhook endpoint for incoming call notifications</p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="webhookFailoverUrl" className="text-foreground">Webhook Failover URL</Label>
-                    <Input
-                      id="webhookFailoverUrl"
-                      type="url"
-                      placeholder="https://backup.example.com/webhook"
-                      value={webhookFailoverUrl}
-                      onChange={(e) => setWebhookFailoverUrl(e.target.value)}
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Backup webhook URL if primary fails</p>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2 rounded-lg transition-all mt-6"
-                  >
-                    Save Webhook Settings
-                  </Button>
-                </form>
-              </div>
-
-              {/* Ringtone Selection */}
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h2 className="text-xl font-bold text-foreground mb-6">Incoming Call Ringtone</h2>
-
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Select your preferred ringtone for incoming calls</p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {RINGTONES.map((ringtone) => (
-                      <label
-                        key={ringtone.id}
-                        className="flex items-center p-3 border border-border rounded-lg cursor-pointer hover:bg-muted transition-colors"
-                      >
-                        <input
-                          type="radio"
-                          name="ringtone"
-                          value={ringtone.id}
-                          checked={selectedRingtone === ringtone.id}
-                          onChange={(e) => setSelectedRingtone(e.target.value)}
-                          className="mr-3"
-                        />
-                        <span className="text-foreground">{ringtone.name}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  <Button
-                    onClick={handleSaveWebhookSettings}
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2 rounded-lg transition-all mt-6"
-                  >
-                    Save Ringtone Settings
-                  </Button>
-                </div>
               </div>
             </TabsContent>
           </Tabs>

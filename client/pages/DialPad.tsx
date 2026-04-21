@@ -78,16 +78,23 @@ export default function DialPad() {
     return () => clearInterval(interval);
   }, [activeCall]);
 
-  // Handle ringtone playback for incoming calls
+  // Handle ringtone playback for incoming calls - play when new incoming call detected
   useEffect(() => {
     const incomingCalls = calls.filter((c) => c.type === 'incoming');
+    // Only play if there are incoming calls and we're not already playing and no active call
     if (incomingCalls.length > 0 && !activeCall && !ringtonePlayback) {
-      setRingtonePlayback(true);
-      playRingtone(selectedRingtone).then(() => {
-        setRingtonePlayback(false);
-      });
+      // Small delay to ensure user interaction context
+      setTimeout(() => {
+        setRingtonePlayback(true);
+        playRingtone(selectedRingtone).then(() => {
+          setRingtonePlayback(false);
+        }).catch((e) => {
+          console.error('Error playing ringtone:', e);
+          setRingtonePlayback(false);
+        });
+      }, 100);
     }
-  }, [calls, activeCall, selectedRingtone, ringtonePlayback]);
+  }, [calls.length, activeCall, selectedRingtone]);
 
   const dialPadButtons = [
     ['1', '2', '3'],
@@ -209,10 +216,27 @@ export default function DialPad() {
                   </div>
                 ) : (
                   <>
-                    {ringtonePlayback && (
-                      <div className="mb-3 p-2 bg-blue-50 border border-blue-300 rounded-lg flex items-center gap-2 animate-pulse">
-                        <Volume2 className="w-4 h-4 text-blue-600" />
-                        <span className="text-xs text-blue-700 flex-1">Ringtone playing ({selectedRingtone})</span>
+                    <div className="mb-3 p-2 bg-amber-50 border border-amber-300 rounded-lg flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs text-amber-700 flex-1">Ringtone: {selectedRingtone}</span>
+                      <Button
+                        onClick={() => {
+                          setRingtonePlayback(true);
+                          playRingtone(selectedRingtone).then(() => {
+                            setRingtonePlayback(false);
+                          }).catch((e) => {
+                            console.error('Error:', e);
+                            setRingtonePlayback(false);
+                          });
+                        }}
+                        disabled={ringtonePlayback}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                      >
+                        {ringtonePlayback ? 'Playing...' : 'Test'}
+                      </Button>
+                      {ringtonePlayback && (
                         <Button
                           onClick={() => {
                             stopRingtone();
@@ -224,8 +248,8 @@ export default function DialPad() {
                         >
                           <VolumeX className="w-3 h-3" />
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     <div className="space-y-2 flex-1 overflow-auto">
                       {incomingCalls.map((call) => (
                         <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">

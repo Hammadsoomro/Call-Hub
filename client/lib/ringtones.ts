@@ -3,11 +3,17 @@
 
 let audioContext: AudioContext | null = null;
 let currentOscillators: OscillatorNode[] = [];
+let currentGainNodes: GainNode[] = [];
 let isPlaying = false;
 
 function getAudioContext(): AudioContext {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextConstructor = (window.AudioContext || (window as any).webkitAudioContext);
+    audioContext = new AudioContextConstructor();
+  }
+  // Resume audio context if suspended (due to browser autoplay policy)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
   }
   return audioContext;
 }
@@ -20,37 +26,51 @@ function stopAllOscillators() {
       // Already stopped
     }
   });
+  currentGainNodes.forEach(gain => {
+    try {
+      gain.gain.cancelScheduledValues(getAudioContext().currentTime);
+    } catch (e) {
+      // Already handled
+    }
+  });
   currentOscillators = [];
+  currentGainNodes = [];
   isPlaying = false;
 }
 
 function playTone(frequency: number, duration: number, volume: number = 0.3): Promise<void> {
   return new Promise((resolve) => {
-    const ctx = getAudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc.frequency.value = frequency;
-    osc.type = 'sine';
+      osc.frequency.value = frequency;
+      osc.type = 'sine';
 
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      gain.gain.setValueAtTime(volume, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
 
-    osc.start();
-    currentOscillators.push(osc);
+      osc.start();
+      currentOscillators.push(osc);
+      currentGainNodes.push(gain);
 
-    setTimeout(() => {
-      try {
-        osc.stop();
-      } catch (e) {
-        // Already stopped
-      }
-      currentOscillators = currentOscillators.filter(o => o !== osc);
+      setTimeout(() => {
+        try {
+          osc.stop();
+        } catch (e) {
+          // Already stopped
+        }
+        currentOscillators = currentOscillators.filter(o => o !== osc);
+        resolve();
+      }, duration * 1000);
+    } catch (e) {
+      console.error('Error playing tone:', e);
       resolve();
-    }, duration * 1000);
+    }
   });
 }
 

@@ -36,7 +36,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Phone className="w-5 h-5 text-sidebar-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-sidebar-primary-foreground">CallHub</h1>
+                <h1 className="text-lg font-bold text-sidebar-primary-foreground">Call Hub</h1>
                 <p className="text-xs text-sidebar-accent-foreground">VoIP Platform</p>
               </div>
             </Link>
