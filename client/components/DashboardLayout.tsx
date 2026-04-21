@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Phone, PhoneOff, ShoppingCart, Settings, LogOut, Menu, X } from 'lucide-react';
@@ -10,8 +10,36 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isTelnyxConnected } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [telnyxBalance, setTelnyxBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  // Fetch Telnyx balance when component mounts or when Telnyx is connected
+  useEffect(() => {
+    if (isTelnyxConnected() && user?.telnyxApiKey) {
+      fetchBalance();
+    }
+  }, [isTelnyxConnected(), user?.telnyxApiKey]);
+
+  const fetchBalance = async () => {
+    try {
+      setLoadingBalance(true);
+      const response = await fetch('/api/telnyx/balance', {
+        headers: {
+          'Authorization': `Bearer ${user?.telnyxApiKey}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTelnyxBalance(Number(data.balance));
+      }
+    } catch (err) {
+      console.error('Failed to fetch balance:', err);
+    } finally {
+      setLoadingBalance(false);
+    }
+  };
 
   const mainNavItems = [
     { path: '/dialpad', label: 'DialPad', icon: Phone },
@@ -100,6 +128,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {isSidebarOpen && <span>Sign Out</span>}
           </button>
         </div>
+
+        {/* Telnyx Balance Display */}
+        {isSidebarOpen && isTelnyxConnected() && (
+          <div className="border-t border-sidebar-border p-3 bg-sidebar-accent/50">
+            <p className="text-xs text-sidebar-accent-foreground mb-1">Telnyx Balance</p>
+            {loadingBalance ? (
+              <p className="text-sm font-semibold text-sidebar-foreground">Loading...</p>
+            ) : telnyxBalance !== null && !isNaN(telnyxBalance) ? (
+              <p className="text-lg font-bold text-sidebar-primary">${telnyxBalance.toFixed(2)}</p>
+            ) : (
+              <p className="text-sm text-sidebar-foreground">—</p>
+            )}
+          </div>
+        )}
 
         {/* User Info */}
         {isSidebarOpen && (

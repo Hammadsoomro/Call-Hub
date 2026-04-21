@@ -8,9 +8,13 @@ import { AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function TelnyxConnect() {
   const [apiKey, setApiKey] = useState('');
+  const [sipUsername, setSipUsername] = useState('');
+  const [sipPassword, setSipPassword] = useState('');
+  const [showSipPassword, setShowSipPassword] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const { setTelnyxApiKey } = useAuth();
+  const { persistCredentials } = useAuth();
   const navigate = useNavigate();
 
   const handleConnect = async (e: React.FormEvent) => {
@@ -22,29 +26,22 @@ export default function TelnyxConnect() {
       return;
     }
 
+    if (!sipUsername.trim() || !sipPassword.trim()) {
+      setError('Please enter both SIP username and password');
+      return;
+    }
+
     try {
-      // Validate the API key with the backend
-      const response = await fetch('/api/telnyx/set-api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ apiKey }),
-      });
+      // Persist all credentials with the backend
+      await persistCredentials(apiKey, sipUsername, sipPassword);
+      setSuccess(true);
 
-      if (response.ok) {
-        setTelnyxApiKey(apiKey);
-        setSuccess(true);
-
-        // Redirect to dialpad after 1 second
-        setTimeout(() => {
-          navigate('/dialpad');
-        }, 1000);
-      } else {
-        setError('Invalid API key. Please check and try again.');
-      }
+      // Redirect to dialpad after 1 second
+      setTimeout(() => {
+        navigate('/dialpad');
+      }, 1000);
     } catch (err: any) {
-      setError(err.message || 'Failed to validate API key');
+      setError(err.message || 'Failed to save credentials. Please check and try again.');
     }
   };
 
@@ -91,19 +88,66 @@ export default function TelnyxConnect() {
               </Label>
               <Input
                 id="apiKey"
-                type="password"
+                type={showApiKey ? 'text' : 'password'}
                 placeholder="Enter your Telnyx API key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 disabled={success}
                 className="mt-2"
               />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="text-xs text-primary hover:underline mt-2"
+              >
+                {showApiKey ? 'Hide' : 'Show'} API Key
+              </button>
               <p className="text-xs text-muted-foreground mt-2">
                 You can find your API key in your Telnyx Dashboard under Account Settings.
                 <a href="https://telnyx.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">
                   Go to Dashboard →
                 </a>
               </p>
+            </div>
+
+            <div>
+              <Label htmlFor="sipUsername" className="text-foreground mb-2 block">
+                SIP Username
+              </Label>
+              <Input
+                id="sipUsername"
+                type="text"
+                placeholder="Enter your SIP username"
+                value={sipUsername}
+                onChange={(e) => setSipUsername(e.target.value)}
+                disabled={success}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Your SIP credentials are used to establish VoIP connections for making and receiving calls.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="sipPassword" className="text-foreground mb-2 block">
+                SIP Password
+              </Label>
+              <Input
+                id="sipPassword"
+                type={showSipPassword ? 'text' : 'password'}
+                placeholder="Enter your SIP password"
+                value={sipPassword}
+                onChange={(e) => setSipPassword(e.target.value)}
+                disabled={success}
+                className="mt-2"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSipPassword(!showSipPassword)}
+                className="text-xs text-primary hover:underline mt-2"
+              >
+                {showSipPassword ? 'Hide' : 'Show'} Password
+              </button>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
