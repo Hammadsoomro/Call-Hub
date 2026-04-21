@@ -23,14 +23,30 @@ export default function Settings() {
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  const handleUpdateApi = (e: React.FormEvent) => {
+  const handleUpdateApi = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey.trim()) return;
-    
-    setTelnyxApiKey(apiKey);
-    setApiKey('');
-    setApiSuccess(true);
-    setTimeout(() => setApiSuccess(false), 3000);
+
+    try {
+      const response = await fetch('/api/telnyx/set-api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey }),
+      });
+
+      if (response.ok) {
+        setTelnyxApiKey(apiKey);
+        setApiKey('');
+        setApiSuccess(true);
+        setTimeout(() => setApiSuccess(false), 3000);
+      } else {
+        alert('Failed to validate API key. Please check and try again.');
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    }
   };
 
   const handleDisconnectApi = () => {

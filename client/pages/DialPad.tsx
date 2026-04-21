@@ -2,49 +2,66 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowDownLeft, ArrowUpRight, Phone, Delete, Copy } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Call } from '@shared/api';
+import { ArrowDownLeft, ArrowUpRight, Phone, Delete, Copy, AlertCircle, Loader } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface Call {
-  id: string;
-  contactName: string;
-  phoneNumber: string;
-  duration: number; // in seconds
-  timestamp: Date;
-  type: 'incoming' | 'outgoing';
-}
-
 export default function DialPad() {
+  const { user, isTelnyxConnected } = useAuth();
   const [dialValue, setDialValue] = useState('');
   const [selectedNumber, setSelectedNumber] = useState('');
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [callTimer, setCallTimer] = useState(0);
-  const [calls, setCalls] = useState<Call[]>([
-    {
-      id: '1',
-      contactName: 'John Doe',
-      phoneNumber: '+1 (555) 123-4567',
-      duration: 245,
-      timestamp: new Date(Date.now() - 3600000),
-      type: 'incoming',
-    },
-    {
-      id: '2',
-      contactName: 'Jane Smith',
-      phoneNumber: '+1 (555) 987-6543',
-      duration: 512,
-      timestamp: new Date(Date.now() - 7200000),
-      type: 'outgoing',
-    },
-    {
-      id: '3',
-      contactName: 'Mike Johnson',
-      phoneNumber: '+1 (555) 456-7890',
-      duration: 125,
-      timestamp: new Date(Date.now() - 10800000),
-      type: 'incoming',
-    },
-  ]);
+  const [calls, setCalls] = useState<Call[]>([]);
+  const [purchasedNumbers, setPurchasedNumbers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch call history and bought numbers
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isTelnyxConnected()) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setError(null);
+
+        // Fetch call history
+        const callsResponse = await fetch('/api/calls', {
+          headers: {
+            Authorization: `Bearer ${user?.telnyxApiKey}`,
+          },
+        });
+
+        if (callsResponse.ok) {
+          const callsData = await callsResponse.json();
+          setCalls(callsData.calls || []);
+        }
+
+        // Fetch bought numbers
+        const numbersResponse = await fetch('/api/numbers/bought', {
+          headers: {
+            Authorization: `Bearer ${user?.telnyxApiKey}`,
+          },
+        });
+
+        if (numbersResponse.ok) {
+          const numbersData = await numbersResponse.json();
+          setPurchasedNumbers(numbersData.numbers.map((n: any) => n.number) || []);
+        }
+      } catch (err: any) {
+        console.error('Error fetching data:', err);
+        setError(err.message || 'Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isTelnyxConnected(), user?.telnyxApiKey]);
 
   // Simulate call timer
   useEffect(() => {
@@ -121,66 +138,88 @@ export default function DialPad() {
             <h2 className="text-lg font-bold text-foreground">Call History</h2>
           </div>
 
-          <Tabs defaultValue="incoming" className="flex-1 flex flex-col">
-            <TabsList className="m-3 grid w-auto grid-cols-2 bg-muted">
-              <TabsTrigger value="incoming" className="flex-1">
-                Incoming
-              </TabsTrigger>
-              <TabsTrigger value="outgoing" className="flex-1">
-                Outgoing
-              </TabsTrigger>
-            </TabsList>
+          {!isTelnyxConnected() ? (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="text-center">
+                <AlertCircle className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Connect Telnyx API in Settings to see call history
+                </p>
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <Loader className="w-5 h-5 text-primary animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="text-center">
+                <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <Tabs defaultValue="incoming" className="flex-1 flex flex-col">
+              <TabsList className="m-3 grid w-auto grid-cols-2 bg-muted">
+                <TabsTrigger value="incoming" className="flex-1">
+                  Incoming ({incomingCalls.length})
+                </TabsTrigger>
+                <TabsTrigger value="outgoing" className="flex-1">
+                  Outgoing ({outgoingCalls.length})
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="incoming" className="flex-1 overflow-auto mt-0 px-3 py-2">
-              {incomingCalls.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  No incoming calls
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {incomingCalls.map((call) => (
-                    <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <ArrowDownLeft className="w-4 h-4 text-green-500" />
-                            <p className="font-semibold text-foreground">{call.contactName}</p>
+              <TabsContent value="incoming" className="flex-1 overflow-auto mt-0 px-3 py-2">
+                {incomingCalls.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No incoming calls
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {incomingCalls.map((call) => (
+                      <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <ArrowDownLeft className="w-4 h-4 text-green-500" />
+                              <p className="font-semibold text-foreground">{call.contactName}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{call.phoneNumber}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">{call.phoneNumber}</p>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2">{formatDuration(call.duration)}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">{formatDuration(call.duration)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
 
-            <TabsContent value="outgoing" className="flex-1 overflow-auto mt-0 px-3 py-2">
-              {outgoingCalls.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  No outgoing calls
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {outgoingCalls.map((call) => (
-                    <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <ArrowUpRight className="w-4 h-4 text-blue-500" />
-                            <p className="font-semibold text-foreground">{call.contactName}</p>
+              <TabsContent value="outgoing" className="flex-1 overflow-auto mt-0 px-3 py-2">
+                {outgoingCalls.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No outgoing calls
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {outgoingCalls.map((call) => (
+                      <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <ArrowUpRight className="w-4 h-4 text-blue-500" />
+                              <p className="font-semibold text-foreground">{call.contactName}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{call.phoneNumber}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">{call.phoneNumber}</p>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2">{formatDuration(call.duration)}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">{formatDuration(call.duration)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
 
         {/* Right Side - Dialpad */}
@@ -223,10 +262,18 @@ export default function DialPad() {
                       value={selectedNumber}
                       onChange={(e) => setSelectedNumber(e.target.value)}
                       className="w-full p-2 border border-border rounded-lg bg-white text-foreground"
+                      disabled={!isTelnyxConnected() || purchasedNumbers.length === 0}
                     >
-                      <option value="">Your Telnyx Numbers</option>
-                      <option value="+1 (555) 000-0001">+1 (555) 000-0001</option>
-                      <option value="+1 (555) 000-0002">+1 (555) 000-0002</option>
+                      <option value="">
+                        {purchasedNumbers.length === 0
+                          ? 'No numbers available'
+                          : 'Select a number'}
+                      </option>
+                      {purchasedNumbers.map((num) => (
+                        <option key={num} value={num}>
+                          {num}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -1,33 +1,48 @@
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Phone, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { PhoneNumber } from '@shared/api';
+import { Phone, Trash2, AlertCircle, Loader } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-interface OwnedNumber {
-  id: string;
-  number: string;
-  country: string;
-  purchasedDate: Date;
-  renewalDate: Date;
-}
-
 export default function BoughtNumbers() {
-  const numbers: OwnedNumber[] = [
-    {
-      id: '1',
-      number: '+1 (555) 000-0001',
-      country: 'United States',
-      purchasedDate: new Date('2024-01-15'),
-      renewalDate: new Date('2025-01-15'),
-    },
-    {
-      id: '2',
-      number: '+1 (555) 000-0002',
-      country: 'United States',
-      purchasedDate: new Date('2024-02-20'),
-      renewalDate: new Date('2025-02-20'),
-    },
-  ];
+  const { user, isTelnyxConnected } = useAuth();
+  const [numbers, setNumbers] = useState<PhoneNumber[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchNumbers = async () => {
+      if (!isTelnyxConnected()) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setError(null);
+        const response = await fetch('/api/numbers/bought', {
+          headers: {
+            Authorization: `Bearer ${user?.telnyxApiKey}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setNumbers(data.numbers || []);
+        } else {
+          setError('Failed to load phone numbers');
+        }
+      } catch (err: any) {
+        console.error('Error fetching numbers:', err);
+        setError(err.message || 'Failed to load phone numbers');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNumbers();
+  }, [isTelnyxConnected(), user?.telnyxApiKey]);
 
   return (
     <DashboardLayout>
@@ -37,7 +52,33 @@ export default function BoughtNumbers() {
           <p className="text-muted-foreground">Manage your purchased Telnyx numbers</p>
         </div>
 
-        {numbers.length === 0 ? (
+        {!isTelnyxConnected() ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">Telnyx Not Connected</h2>
+            <p className="text-muted-foreground mb-6">
+              Connect your Telnyx API in Settings to see your purchased numbers
+            </p>
+            <Link to="/settings">
+              <Button className="bg-primary hover:bg-primary/90 text-white">
+                Go to Settings
+              </Button>
+            </Link>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader className="w-8 h-8 text-primary animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">Error Loading Numbers</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
+            <Button variant="outline" className="py-2 rounded-lg">
+              Try Again
+            </Button>
+          </div>
+        ) : numbers.length === 0 ? (
           <div className="bg-card rounded-2xl border border-border p-12 text-center">
             <Phone className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <h2 className="text-xl font-semibold text-foreground mb-2">No Numbers Yet</h2>
@@ -66,11 +107,15 @@ export default function BoughtNumbers() {
                     <div className="grid grid-cols-2 gap-4 text-sm mt-4">
                       <div>
                         <p className="text-muted-foreground text-xs">Purchased</p>
-                        <p className="font-semibold text-foreground">{num.purchasedDate.toLocaleDateString()}</p>
+                        <p className="font-semibold text-foreground">
+                          {new Date(num.purchasedDate).toLocaleDateString()}
+                        </p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Renewal Date</p>
-                        <p className="font-semibold text-foreground">{num.renewalDate.toLocaleDateString()}</p>
+                        <p className="font-semibold text-foreground">
+                          {new Date(num.renewalDate).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -83,13 +128,15 @@ export default function BoughtNumbers() {
           </div>
         )}
 
-        <div className="mt-8">
-          <Link to="/buy-number">
-            <Button className="bg-primary hover:bg-primary/90 text-white">
-              Buy Another Number
-            </Button>
-          </Link>
-        </div>
+        {numbers.length > 0 && (
+          <div className="mt-8">
+            <Link to="/buy-number">
+              <Button className="bg-primary hover:bg-primary/90 text-white">
+                Buy Another Number
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

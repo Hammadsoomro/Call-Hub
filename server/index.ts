@@ -2,6 +2,13 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
+import {
+  getCallHistory,
+  getBoughtNumbers,
+  searchNumbers,
+  purchaseNumber,
+  setTelnyxApi,
+} from "./routes/telnyx";
 
 export function createServer() {
   const app = express();
@@ -18,6 +25,13 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+
+  // Telnyx API routes
+  app.get("/api/calls", getCallHistory);
+  app.get("/api/numbers/bought", getBoughtNumbers);
+  app.post("/api/numbers/search", searchNumbers);
+  app.post("/api/numbers/purchase", purchaseNumber);
+  app.post("/api/telnyx/set-api", setTelnyxApi);
 
   return app;
 }

@@ -22,15 +22,30 @@ export default function TelnyxConnect() {
       return;
     }
 
-    // In production, validate the API key with Telnyx
-    // For now, just store it
-    setTelnyxApiKey(apiKey);
-    setSuccess(true);
+    try {
+      // Validate the API key with the backend
+      const response = await fetch('/api/telnyx/set-api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey }),
+      });
 
-    // Redirect to dialpad after 1 second
-    setTimeout(() => {
-      navigate('/dialpad');
-    }, 1000);
+      if (response.ok) {
+        setTelnyxApiKey(apiKey);
+        setSuccess(true);
+
+        // Redirect to dialpad after 1 second
+        setTimeout(() => {
+          navigate('/dialpad');
+        }, 1000);
+      } else {
+        setError('Invalid API key. Please check and try again.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to validate API key');
+    }
   };
 
   const handleSkip = () => {
