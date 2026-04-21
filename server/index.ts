@@ -8,6 +8,8 @@ import {
   searchNumbers,
   purchaseNumber,
   setTelnyxApi,
+  getTelnyxBalance,
+  saveWebhookSettings,
 } from "./routes/telnyx";
 
 export function createServer() {
@@ -32,6 +34,8 @@ export function createServer() {
   app.post("/api/numbers/search", searchNumbers);
   app.post("/api/numbers/purchase", purchaseNumber);
   app.post("/api/telnyx/set-api", setTelnyxApi);
+  app.get("/api/telnyx/balance", getTelnyxBalance);
+  app.post("/api/settings/webhooks", saveWebhookSettings);
 
   return app;
 }

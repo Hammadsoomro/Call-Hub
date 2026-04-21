@@ -52,7 +52,12 @@ export interface User {
   name: string;
   password?: string;
   telnyxApiKey?: string;
+  sipUsername?: string;
+  sipPassword?: string;
   telnyxBalance?: number;
+  webhookUrl?: string;
+  webhookFailoverUrl?: string;
+  selectedRingtone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
