@@ -55,7 +55,7 @@ export default function Settings() {
       });
       if (response.ok) {
         const data = await response.json();
-        setTelnyxBalance(data.balance);
+        setTelnyxBalance(Number(data.balance));
       }
     } catch (err) {
       console.error('Failed to fetch balance:', err);
@@ -399,7 +399,7 @@ export default function Settings() {
                           <p className="text-sm text-blue-700 font-semibold">Telnyx Account Balance</p>
                           {loadingBalance ? (
                             <p className="text-2xl font-bold text-blue-900 mt-2">Loading...</p>
-                          ) : telnyxBalance !== null ? (
+                          ) : telnyxBalance !== null && !isNaN(telnyxBalance) ? (
                             <p className="text-2xl font-bold text-blue-900 mt-2">${telnyxBalance.toFixed(2)}</p>
                           ) : (
                             <p className="text-lg text-blue-700 mt-2">Unable to fetch balance</p>
