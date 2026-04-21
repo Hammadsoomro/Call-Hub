@@ -87,6 +87,8 @@ export interface PurchaseNumberResponse {
 // Telnyx API Types
 export interface SetTelnyxApiRequest {
   apiKey: string;
+  sipUsername?: string;
+  sipPassword?: string;
 }
 
 export interface SetTelnyxApiResponse {

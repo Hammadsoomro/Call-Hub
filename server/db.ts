@@ -52,6 +52,8 @@ export interface User {
   name: string;
   password?: string;
   telnyxApiKey?: string;
+  sipUsername?: string;
+  sipPassword?: string;
   telnyxBalance?: number;
   createdAt: Date;
   updatedAt: Date;

@@ -5,6 +5,8 @@ export interface AuthUser {
   email: string;
   name: string;
   telnyxApiKey?: string;
+  sipUsername?: string;
+  sipPassword?: string;
   createdAt: Date;
 }
 
@@ -15,7 +17,9 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   setTelnyxApiKey: (key: string) => void;
+  setSipCredentials: (username: string, password: string) => void;
   isTelnyxConnected: () => boolean;
+  persistCredentials: (apiKey?: string, sipUsername?: string, sipPassword?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,12 +84,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const setSipCredentials = (username: string, password: string) => {
+    if (user) {
+      const updatedUser = { ...user, sipUsername: username, sipPassword: password };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const persistCredentials = async (apiKey?: string, sipUsername?: string, sipPassword?: string) => {
+    if (!user) return;
+
+    try {
+      const response = await fetch('/api/telnyx/set-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, sipUsername, sipPassword, userId: user.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save credentials');
+      }
+
+      // Update local state with new credentials
+      const updatedUser: AuthUser = { ...user };
+      if (apiKey) updatedUser.telnyxApiKey = apiKey;
+      if (sipUsername) updatedUser.sipUsername = sipUsername;
+      if (sipPassword) updatedUser.sipPassword = sipPassword;
+
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Error persisting credentials:', error);
+      throw error;
+    }
+  };
+
   const isTelnyxConnected = () => {
     return !!user?.telnyxApiKey;
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, setTelnyxApiKey, isTelnyxConnected }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, setTelnyxApiKey, setSipCredentials, persistCredentials, isTelnyxConnected }}>
       {children}
     </AuthContext.Provider>
   );

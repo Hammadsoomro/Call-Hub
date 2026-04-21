@@ -79,6 +79,7 @@ export default function DialPad() {
     ['4', '5', '6'],
     ['7', '8', '9'],
     ['*', '0', '#'],
+    ['+'],
   ];
 
   const handleDialPadClick = (digit: string) => {

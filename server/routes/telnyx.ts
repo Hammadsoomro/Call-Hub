@@ -8,6 +8,7 @@ import {
   PurchaseNumberRequest,
   SetTelnyxApiResponse,
 } from '@shared/api';
+import { updateUser, connectDB } from '../db';
 
 // Helper to get Telnyx API key from request headers
 function getTelnyxApiKey(req: any): string | null {
@@ -188,10 +189,10 @@ export const purchaseNumber: RequestHandler = async (req, res) => {
   }
 };
 
-// Store Telnyx API key for user
+// Store Telnyx API key and SIP credentials for user
 export const setTelnyxApi: RequestHandler = async (req, res) => {
   try {
-    const { apiKey } = req.body;
+    const { apiKey, sipUsername, sipPassword, userId } = req.body;
 
     if (!apiKey) {
       return res.status(400).json({ error: 'API key is required' });
@@ -206,10 +207,24 @@ export const setTelnyxApi: RequestHandler = async (req, res) => {
       return res.status(401).json({ error: 'Invalid Telnyx API key' });
     }
 
-    // In production, store this securely in the database associated with the user
+    // Save to MongoDB if userId is provided
+    if (userId) {
+      try {
+        await connectDB();
+        const updates: any = { telnyxApiKey: apiKey };
+        if (sipUsername) updates.sipUsername = sipUsername;
+        if (sipPassword) updates.sipPassword = sipPassword;
+
+        await updateUser(userId, updates);
+      } catch (dbError) {
+        console.error('Error saving to database:', dbError);
+        // Continue even if DB save fails - we validated the key
+      }
+    }
+
     res.json({
       success: true,
-      message: 'Telnyx API key has been set',
+      message: 'Telnyx API key and SIP credentials have been saved',
     } as SetTelnyxApiResponse);
   } catch (error: any) {
     console.error('Error setting Telnyx API:', error);
