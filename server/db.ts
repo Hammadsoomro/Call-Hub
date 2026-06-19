@@ -52,7 +52,12 @@ export interface User {
   name: string;
   password?: string;
   telnyxApiKey?: string;
+  sipUsername?: string;
+  sipPassword?: string;
   telnyxBalance?: number;
+  webhookUrl?: string;
+  webhookFailoverUrl?: string;
+  selectedRingtone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,10 +68,14 @@ export interface Call {
   userId: string;
   contactName: string;
   phoneNumber: string;
+  from: string;
+  to: string;
   duration: number;
   timestamp: Date;
   type: 'incoming' | 'outgoing';
   selectedNumber?: string;
+  callSessionId?: string;
+  status?: 'completed' | 'missed' | 'declined' | 'failed';
 }
 
 // Phone Number model

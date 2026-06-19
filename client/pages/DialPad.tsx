@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { Call } from '@shared/api';
-import { ArrowDownLeft, ArrowUpRight, Phone, Delete, Copy, AlertCircle, Loader } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Phone, Delete, Copy, AlertCircle, Loader, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { playRingtone, stopRingtone, isRingtonePlaying } from '@/lib/ringtones';
 
 export default function DialPad() {
   const { user, isTelnyxConnected } = useAuth();
@@ -17,6 +18,11 @@ export default function DialPad() {
   const [purchasedNumbers, setPurchasedNumbers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [zeroTimeout, setZeroTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [ringtonePlayback, setRingtonePlayback] = useState(false);
+  const selectedRingtone = user?.selectedRingtone || 'default';
+  const [incomingCallNotification, setIncomingCallNotification] = useState(false);
+  const previousIncomingCountRef = useRef(0);
 
   // Fetch call history and bought numbers
   useEffect(() => {
@@ -61,6 +67,11 @@ export default function DialPad() {
     };
 
     fetchData();
+
+    // Auto-refresh incoming calls every 3 seconds to detect new calls
+    const refreshInterval = setInterval(fetchData, 3000);
+
+    return () => clearInterval(refreshInterval);
   }, [isTelnyxConnected(), user?.telnyxApiKey]);
 
   // Simulate call timer
@@ -74,6 +85,40 @@ export default function DialPad() {
     return () => clearInterval(interval);
   }, [activeCall]);
 
+  // Handle incoming call detection and notification
+  useEffect(() => {
+    const incomingCalls = calls.filter((c) => c.type === 'incoming');
+    const currentIncomingCount = incomingCalls.length;
+
+    // Detect new incoming call
+    if (currentIncomingCount > previousIncomingCountRef.current) {
+      setIncomingCallNotification(true);
+      // Auto-hide notification after 5 seconds
+      const timer = setTimeout(() => setIncomingCallNotification(false), 5000);
+      return () => clearTimeout(timer);
+    }
+
+    previousIncomingCountRef.current = currentIncomingCount;
+  }, [calls.filter((c) => c.type === 'incoming').length]);
+
+  // Handle ringtone playback for incoming calls - play when new incoming call detected
+  useEffect(() => {
+    const incomingCalls = calls.filter((c) => c.type === 'incoming');
+    // Only play if there are incoming calls and we're not already playing and no active call
+    if (incomingCalls.length > 0 && !activeCall && !ringtonePlayback) {
+      // Small delay to ensure user interaction context
+      setTimeout(() => {
+        setRingtonePlayback(true);
+        playRingtone(selectedRingtone).then(() => {
+          setRingtonePlayback(false);
+        }).catch((e) => {
+          console.error('Error playing ringtone:', e);
+          setRingtonePlayback(false);
+        });
+      }, 100);
+    }
+  }, [calls.length, activeCall, selectedRingtone]);
+
   const dialPadButtons = [
     ['1', '2', '3'],
     ['4', '5', '6'],
@@ -82,7 +127,25 @@ export default function DialPad() {
   ];
 
   const handleDialPadClick = (digit: string) => {
-    setDialValue((prev) => prev + digit);
+    if (digit === '0') {
+      // Long press logic for 0 button
+      if (zeroTimeout) clearTimeout(zeroTimeout);
+      const timeout = setTimeout(() => {
+        setDialValue((prev) => prev + '+');
+        setZeroTimeout(null);
+      }, 500); // 500ms long press
+      setZeroTimeout(timeout);
+    } else {
+      setDialValue((prev) => prev + digit);
+    }
+  };
+
+  const handleZeroMouseUp = () => {
+    if (zeroTimeout) {
+      clearTimeout(zeroTimeout);
+      setDialValue((prev) => prev + '0');
+      setZeroTimeout(null);
+    }
   };
 
   const handleBackspace = () => {
@@ -131,6 +194,16 @@ export default function DialPad() {
 
   return (
     <DashboardLayout>
+      {/* Incoming Call Notification */}
+      {incomingCallNotification && (
+        <div className="fixed top-0 left-0 right-0 bg-green-50 border-b border-green-300 p-4 z-50 shadow-md">
+          <div className="flex items-center justify-center gap-2 text-green-800">
+            <Phone className="w-5 h-5 animate-pulse" />
+            <span className="font-semibold">Incoming call received!</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex h-screen">
         {/* Left Side - Contact List */}
         <div className="w-80 border-r border-border bg-card flex flex-col">
@@ -169,28 +242,64 @@ export default function DialPad() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="incoming" className="flex-1 overflow-auto mt-0 px-3 py-2">
+              <TabsContent value="incoming" className="flex-1 overflow-auto mt-0 px-3 py-2 flex flex-col">
                 {incomingCalls.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                     No incoming calls
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {incomingCalls.map((call) => (
-                      <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <ArrowDownLeft className="w-4 h-4 text-green-500" />
-                              <p className="font-semibold text-foreground">{call.contactName}</p>
+                  <>
+                    <div className="mb-3 p-2 bg-amber-50 border border-amber-300 rounded-lg flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs text-amber-700 flex-1">Ringtone: {selectedRingtone}</span>
+                      <Button
+                        onClick={() => {
+                          setRingtonePlayback(true);
+                          playRingtone(selectedRingtone).then(() => {
+                            setRingtonePlayback(false);
+                          }).catch((e) => {
+                            console.error('Error:', e);
+                            setRingtonePlayback(false);
+                          });
+                        }}
+                        disabled={ringtonePlayback}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                      >
+                        {ringtonePlayback ? 'Playing...' : 'Test'}
+                      </Button>
+                      {ringtonePlayback && (
+                        <Button
+                          onClick={() => {
+                            stopRingtone();
+                            setRingtonePlayback(false);
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                        >
+                          <VolumeX className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2 flex-1 overflow-auto">
+                      {incomingCalls.map((call) => (
+                        <div key={call.id} className="p-3 bg-background rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <ArrowDownLeft className="w-4 h-4 text-green-500" />
+                                <p className="font-semibold text-foreground">{call.contactName}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">{call.phoneNumber}</p>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">{call.phoneNumber}</p>
                           </div>
+                          <p className="text-xs text-muted-foreground mt-2">{formatDuration(call.duration)}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">{formatDuration(call.duration)}</p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </TabsContent>
 
@@ -285,7 +394,11 @@ export default function DialPad() {
                       {row.map((digit) => (
                         <Button
                           key={digit}
-                          onClick={() => handleDialPadClick(digit)}
+                          onClick={() => digit !== '0' && handleDialPadClick(digit)}
+                          onMouseDown={() => digit === '0' && handleDialPadClick(digit)}
+                          onMouseUp={() => digit === '0' && handleZeroMouseUp()}
+                          onTouchStart={() => digit === '0' && handleDialPadClick(digit)}
+                          onTouchEnd={() => digit === '0' && handleZeroMouseUp()}
                           className="h-16 text-xl font-semibold bg-white hover:bg-muted text-foreground border border-border rounded-lg transition-all"
                         >
                           {digit}
